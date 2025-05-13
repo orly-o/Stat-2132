@@ -1,0 +1,110 @@
+---
+title: "2132 HW3"
+author: "Orly Olbum"
+date: ""
+output: pdf_document
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+setwd("C:/Users/orlyo/OneDrive/Desktop/Grad School/Spring 2021/STAT 2132 - Applied Stat. Methods 2/Homeworks/HW3")
+data = read.csv("data.csv")
+```
+
+## Problem 1
+
+*In toxicology, the LD50 is the dose that causes a 50% mortality rate. Experiments are often carried out at a sequence of dose levels, x0, x1, x2,..., each dose being twice the preceding dose, where we will assume for simplicity that x0 = 1. The model most commonly used in toxicology is linear in log dose. Suppose that the following results have been obtained in an experiment at various multiples of the baseline dose.*
+
+![](prob1table.png)
+
+*In the above table, x is the dose and y/m is the number of deaths (y) occurring in a sample of m individuals.*
+
+*(a) Consider a model in which the logit of the mortality rate is linear in log dose. Report the probability model you are assuming, and define all coefficients in your model. Remember to state which observations you are assuming are independent.*
+
+Logit model: **logit(y/m) = B0 + B1Xi**, where Xi is log-base-2 of dose and y/m is probability of death. B0 is the log odds of mortality for Xi = 0, and B1 is the odds ration (OR) between Xi+1 and Xi. The assumptions for the logit model are as follows, with y being independent (Y given X):  
+- the link function must be strictly increasing or decreasing (satisfied by logit)  
+- the outcome must be binary 
+- no transformation of Y, only of the mean of Y
+- there is a linear relationship between the logit and the independent variable  
+- there are on influential values  
+- there is no multicollinearity  
+
+*(b) Fit the linear logistic model in which the logit of the mortality rate is linear in log dose, and plot the fitted mortality rate and raw mortality fractions y/m against log dose (remember the fitted mortality rate is a continuous function). Do you think the model you assumed in part (a) is reasonable?*
+
+Because the response variable mortality is presented as proportions between 0 and 1 and not binary as either 0 or 1, we use the quasibinomial family of distributions for the logit.
+
+```{r}
+model1 = glm(mortality ~ log.2.x, family = quasibinomial(link = "logit"), data = data)
+# summary(model1)
+plot(data$log.2.x, data$mortality, main = "Plot of Enzyme Data \nwith Model Fit", 
+     xlab = "Log dose", ylab = "Mortality Rate")
+abline(model1, col = "red", lwd = 2)
+
+# X1_range <- seq(from=min(Data$x), to=max(Data$x), by=.01)
+# 
+# a_logits <- beta.hat[1] + beta.hat[2]*X1_range
+# a_probs <- exp(a_logits)/(1 + exp(a_logits))
+# plot(X1_range, a_probs, ylim=c(0,1), type="l", lwd=3, col="steelblue", xlab="X1", 
+#      ylab="P(outcome)", main="Probability of super important outcome")
+# abline(h=.5)
+
+qqnorm(data$log.2.x, pch = 1, frame = TRUE)
+qqline(data$log.2.x, col = "steelblue", lwd = 2)
+```
+
+While we have very few data points and the model fit does not exactly appear to follow the data points, the normal qq-plot shown above does satisfy what we look for in a linear regression, which would indicate our model fits the data well. The model output shows that log dose is a significant predictor (at 95% confidence) for mortality rate with a p-value of **0.003**.
+
+*(c) Estimating gamma = LD50.*
+
+*(i) Obtain an estimate for gamma.*
+
+LD50 is the gamma for which the probability of mortality is 50%, which is equivalent to setting B0 + B1gamma = 0 and solving for gamma. We get gamma = -B0/B1 = **2.502**.
+
+```{r}
+gamma.hat = model1$coefficients[1]/model1$coefficients[2]*-1
+# gamma.hat
+```
+
+*(ii) Consider the null hypothesis that log2(gamma) = 4 as a sub-model or restriction of the linear logistic model. Fit the sub-model and compute the log likelihood ratio statistic LR(4). If the null hypothesis is correct, what is the approximate distribution of LR(4)? Compute the p-value.*
+
+Log2(gamma) = 4 gives us -B0/B1 = 4, or B0 = -4B1, which reduces our model to one B instead of two. Once we shift the data our hypothesis essentially is that our model has no intercept (reduced model). We can then compare this to the full model from above, and determine if the intercept was adding anything or not.
+
+```{r}
+data$new.x = data$log.2.x-4
+model2 = glm(mortality ~ new.x + 0, family = quasibinomial(link = "logit"), data = data)
+
+lr.stat = model1$deviance - model2$deviance
+# lr.stat
+pvalue.H0.lr = pchisq(q = lr.stat, df = 4, lower.tail = T)
+# pvalue.H0.lr
+```
+
+The LR test statistic **-1.323** returns a p-value of **0.000**.
+
+*(iii) By plotting the restricted log likelihood against the hypothesized value of log2(gamma), construct a likelihood-based 95% confidence set for gamma.*
+
+```{r}
+plot(data$new.x, data$mortality, main = "Restricted", xlab = "Log dose - 4", ylab = "Mortality Rate")
+abline(model2, col = "red", lwd = 2)
+abline(v = 0, col = "blue", lwd = 2)
+
+# n = length(data$log.2.x)
+# s = sqrt(mean((data$log.2.x - mean(data$log.2.x))^2))
+# x.bar = mean(data$log.2.x)
+# MLE = c(x.bar, s)
+# 
+# R.mu = Vectorize(function(mu) return((sum((data$log.2.x - x.bar)^2)/sum((data$log.2.x - mu)^2))^(0.5*n)))
+# curve(R.mu,-1,1, n = 1000, lwd =3, col = "blue", cex.axis = 2, cex.lab = 1.5, 
+#       main =  expression(paste("Profile likelihood of ", mu)), xlab = ~mu, ylab = "Profile", ylim = c(0,1))
+# abline(h = 0.147, lwd = 2, col = "red", lty = 2)
+# abline(v = MLE[1], lwd = 2, col = "purple", lty = 2)
+# 
+# R.muC = Vectorize(function(mu) return(R.mu(mu) - x.bar))
+# c(uniroot(R.muC, c(0, 4))$root, uniroot(R.muC, c(0, 4))$root)
+
+# confint(model1)
+ci = confint(model2)
+```
+
+From the calculated confidence interval for the one B left (B1), we can calculate an interval for gamma: **(0.083, 1.135)**.
+

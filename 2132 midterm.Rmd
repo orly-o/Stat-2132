@@ -1,0 +1,214 @@
+---
+title: "2132 Midterm"
+author: "Orly Olbum"
+date: "3/10/2021"
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+---
+
+```{r setup, include = FALSE, warning = FALSE, purl = TRUE}
+knitr::opts_chunk$set(echo = FALSE)
+setwd("C:/Users/orlyo/OneDrive/Desktop/Grad School/Spring 2021/2. STAT 2132 - Applied Stat. Methods 2/Exams/Midterm")
+# Problem 1
+insect = read.csv("Insecticide.csv")
+insect$killrate = insect$Successes/insect$Trials
+insect$Type = as.factor(insect$Type)
+insect$ldose = log(insect$Dose)
+# Problem 2
+fert = read.csv("Fertility.csv")
+fert$YSFM = as.factor(fert$YSFM)
+fert$Place = as.factor(fert$Place)
+fert$Education = as.factor(fert$Education)
+# Problem 3
+spec = read.csv("MassSpec.csv")
+pep = read.csv("Pep.csv")
+pep$Yr = as.numeric(pep$Exp_m.to.z %in% spec$Obs_m.to.z)
+pep$lexp = log(pep$Exp_Int)
+```
+
+## Problem 1
+
+*Flour beetles Tribolium castaneum were sprayed with one of three insecticides in solution at different doses. The file “Insecticide.txt” contains data relating to the number of insects killed after a six-day period. The columns are:*  
+*- Type: A factor variable with 3 levels giving the type of insecticide. 1:=DDT, 2:=gamma-BHC, 3:=DDT+gamma-BHC*  
+*- Dose: The dose of insecticide (in mg/10cm2).*  
+*- Trials: The total number of insects.*  
+*- Successes: The number of insects killed after a six-day period.*  
+
+# (a)
+*Investigate graphically the relationship between the dose, either in original units or in log units, and the kill rate. Here, kill rate is the probability an insect is killed.*
+
+```{r, warning = FALSE}
+# plot(insect$Dose, insect$killrate, main = "Dose vs. Kill Rate", xlab = "Dose", ylab = "Kill Rate")
+plot(insect$ldose, insect$killrate, main = "Log-Dose vs. Kill Rate", xlab = "log(Dose)", ylab = "Kill Rate", pch = 20)
+```
+
+# (b)
+*On the graph for part (a), plot the linear logistic fitted curve for each of the insecticides plus the combination.*
+
+```{r, warning = FALSE}
+fit1 = glm(killrate ~ ldose, family = binomial(link = "logit"), data = insect[insect$Type == 1,])
+fit2 = glm(killrate ~ ldose, family = binomial(link = "logit"), data = insect[insect$Type == 2,])
+fit3 = glm(killrate ~ ldose, family = binomial(link = "logit"), data = insect[insect$Type == 3,])
+fit_all = glm(killrate ~ ldose, family = binomial(link = "logit"), data = insect)
+# summary(fit1)
+# summary(fit2)
+# summary(fit3)
+# summary(fit_all)
+
+# lines(insect$ldose[insect$Type == 1], fit1$fitted.values, col = "red", pch = 20)
+# lines(insect$ldose[insect$Type == 2], fit2$fitted.values, col = "blue", pch = 20)
+# lines(insect$ldose[insect$Type == 3], fit3$fitted.values, col = "green", pch = 20)
+# lines(insect$ldose, fit_all$fitted.values, col = "purple", pch = 20)
+# legend("bottomright", legend = c("Type 1", "Type 2", "Type 3", "All"), col = c("red", "blue", "green", "purple"), lty = 1)
+
+plot(insect$ldose, insect$killrate, main = "Log-Dose vs. Kill Rate", xlab = "log(Dose)", ylab = "Kill Rate", pch = 20)
+lines(insect$ldose[insect$Type == 1], log(fit1$fitted.values/(1 - fit1$fitted.values)), col = "red", pch = 20)
+lines(insect$ldose[insect$Type == 2], log(fit2$fitted.values/(1 - fit2$fitted.values)), col = "blue", pch = 20)
+lines(insect$ldose[insect$Type == 3], log(fit3$fitted.values/(1 - fit3$fitted.values)), col = "green", pch = 20)
+lines(insect$ldose, log(fit_all$fitted.values/(1 - fit_all$fitted.values)), col = "purple", pch = 20)
+legend("bottomright", legend = c("Type 1", "Type 2", "Type 3", "All"), col = c("red", "blue", "green", "purple"), lty = 1)
+```
+
+
+# (c)
+*Consider the two models, one in which the relationship is described by three parallel straight lines in the log dose and and one in which the three lines are straight but not parallel. Assess the evidence against the hypothesis of parallelism.*
+
+Parallel lines would indicate a good model fit when considering a proportional odds model, whereas if the lines are straight but not parallel, the slopes are different and this contradicts the proportional odds model fit. Fit1 does not have a significant coefficient for log-dose; Fit2 does not have a significant coefficient; Fit3 does not have a significant coefficient; the fit with all types considered has a significant coefficient at an alpha of .10. Although the lines are ~sort of~ parallel, since none of the individually fitted models have significant coefficients for log-dose, we may not be content with this model fit (proportional odds).
+
+# (d)
+*Let Type be a 3-level factor, and let ldose be the log dose. Explain the relationship between the regression coefficients in the model formulae 'Type + ldose' and 'Type + ldose - 1'.*
+
+```{r, warning = FALSE}
+form1 = glm(killrate ~ Type + ldose, data = insect, family = binomial(link = "logit"))
+summary(form1)
+form2 = glm(killrate ~ Type + ldose - 1, data = insect, family = binomial(link = "logit"))
+summary(form2)
+```
+
+In the second formula, we are omitting the intercept, which forces the model through the origin. We might do this if we are okay with (i.e., expecting to see) a zero, and in our dataset it is possible to have a 0 kill rate. When we leave in the intercept, we retain a degree of freedom because we code just two factors to indicate Type, whereas if we omit the intercept we lose a degree of freedom by adding another covariate as an indicator for the third Type (i.e., the intercept). However, we still have significan predictors in both models.
+
+# (e)
+*On the assumption that three parallel straight lines suffice, estimate the DDT+gamma-BHC dose required to give a 99% kill rate, and obtain a 90% confidence interval for this dose.*
+
+While the coefficients from above were not significant, the lines were ~sort of~ parallel, so we can use all of the data rather than just the Type 3 data to find a 90% CI for the designated dose.
+
+```{r, warning = FALSE}
+# fit3 = glm(killrate ~ ldose, family = binomial(link = "logit"), data = insect[insect$Type == 3,])
+fit_all = glm(killrate ~ ldose, family = binomial(link = "logit"), data = insect)
+log.dose = (log(.99/(1-.99)) - summary(fit_all)$coefficients[1,1])/summary(fit_all)$coefficients[2,1]
+# log.dose
+
+lo = log.dose - 1.65*summary(fit_all)$coefficients[2, 2]
+hi = log.dose + 1.65*summary(fit_all)$coefficients[2, 2]
+ci = c(lo, hi)
+# log.dose; ci
+```
+
+The estimated log-dose required for 99% kill rate is 3.44. Since we are holding the assumption that the lines are parallel (sufficient for model assumptions), we use all of the data rather than just the third type of dose. The 90% CI is (1.44, 5.44).
+
+\newpage
+## Problem 2
+
+*MassSpect contains observed data, Pep contains expected data given P generated the spectrum in MassSpect. Let n = #mass-to-charges in Pep; let Yr = 1 if P's rth mass-to-charge exists in observed spectrum (MassSpect) and Yr = 0 if not for r = 1, ..., n. Conditional on P having generated observed mass spectrum in MassSpect, assume Yi's are independent.*
+
+```{r, include = FALSE, warning = FALSE}
+par(mfrow = c(1, 2))
+plot(spec$Obs_m.to.z, spec$Obs_Int, type = "h", main = "observed", xlab = "mass/charge", ylab = "Relative intensity")
+plot(pep$Exp_m.to.z, pep$Exp_Int, type = "h", main = "expected", xlab = "mass/charge", ylab = "relative intensity")
+```
+
+# (a)
+*Suppose P generated the observed spectrum, and assume logit{E(Yr)} = B0 + B1log(xr), where xr is the expected relative intensity for mass-to-charge r (i.e. the rth entry of the second column in Pep.txt). Given what you know about the problem, what do you expect the sign of B1 to be?*
+
+Based on the explanation of the problem and a rough understanding of the data, I would expect B1 to be positive.
+
+# (b)
+*Compute the maximum likelihood estimate for B1.*
+
+```{r, warning = FALSE}
+n = sum(pep$Yr)
+model = glm(Yr ~ log(Exp_Int), data = pep, family = binomial(link = "logit"))
+# summary(model)
+```
+
+The MLE estimate for B1 is 198.2 with a standard error of 70482.6.
+
+*(i) Do you notice anything peculiar about the estimate?*
+
+The p-values associated with the coefficients are close to 1, and the coefficient values are extremely high with even more surprisingly high standard errors.
+
+*(ii) see attached*
+
+*(iii) Plot Yr as a function of log(xr). In light of part (ii), are the observations you made in part (i) consistent with the plot? Explain.*
+
+```{r, warning = FALSE}
+par(mfrow = c(1, 1))
+plot(pep$lexp, pep$Yr, main = "Plot of Yr as a funciton of log(xr)", xlab = "log(xr)", ylab = "Yr")
+g = glm(Yr ~ lexp, family = binomial, pep)
+curve(predict(g, data.frame(lexp = x), type = "resp"), add = TRUE, col = "red")
+```
+
+Considering Yr can only take on 0 or 1, the plot does look as expected and seems like a good fit for the logit model and the observations from (i) are consistent.
+
+
+\newpage
+## Problem 3
+
+*Consider the dataset “Fertility.txt”. Your goal is to understand which factors help determine the number of children a woman from Fiji will have in her lifetime. The data matrix consists of 5 columns:  *
+*- YSFM: A factor variable giving the number of years since a woman’s first marriage. The levels are 1 (< 5 years), 2 (5-9 years), 3 (10-14 years), 4 (15-19 years), 5 (20-24 years), 6 (25+ years)*  
+*- Place: A factor variable with two levels (Urban and Rural), indicating if the mother lives in a urban or rural area.*  
+*- Education: A factor variable giving the mother’s education level. The levels are 1 (none), 2 (lower elementary), 3 (upper elementary), 4 (secondary or higher).*  
+*- Nwomen: The total number of women sampled.*  
+*- Average: The mean number of children born to a woman in that row.*
+
+# (a)
+*Fit an appropriate model describing the how the number of children varies with marital age, mother’s abode and education. Explain the meaning of all parameters in your model, and comment on the major factors affecting fertility.*
+
+```{r, warning = FALSE}
+model1 = glm(Average ~ YSFM + Place + Education, data = fert, family = poisson(link = "log"))
+summary(model1)
+```
+
+Because we are looking at count data as a dependent variable, we'll use a poisson glm model fit. YSFM is a factor variable with 6 variables. The model uses the first level as a baseline, and codes 5 others as indicators for 1 if that level and all others are 0. If all 5 are 0, the intercept serves as the indicator for level 1. Place is a factor variable with Urban as 1 and Rural as 0. Education acts the same way as YSFM, with 4 different levels and if all are 0, the intercept acts as the indicator for level 1. The predictors with significant p-values (at 0.05) are YSFM3, YSFM4, YSFM5, YSFM6, and Education4. The intercept B0 is the log of the expected value of average children when all covariates are zero (or in this case, when a woman has level 1 YSFM, rural living, and level 1 Education). Exponential of the sum of all covariates is the expected value of average children for the covariates. Because we are using a log link, each of these coefficients represents the effect on the log of the average children a woman will have, not on the number of children itself.
+
+# (b)
+*Construct a 95% confidence interval for the mean number of children born to an urban woman with upper elementary education after ten years of marriage.*
+
+```{r, warning = FALSE}
+# exp(confint(model1))
+log.mean = 0.04765 + 1.399525 + 0.01840 - 0.06270
+new.mean = exp(log.mean)
+
+new.data = data.frame(YSFM = "3", Place = "Urban", Education = "3")
+pred = predict(model1, newdata = new.data, se.fit = TRUE, interval = "confidence")
+
+upper = pred$fit + 1.96*pred$se.fit
+lower = pred$fit - 1.96*pred$se.fit
+interval = c(exp(lower), exp(upper))
+# interval
+```
+
+The 95% CI for mean number of children (4.07) with these levels is (2.58, 6.42).
+
+# (c)
+*Estimate the lifetime average number of children born to rural women with secondary education. Give 90% confidence limits.*
+
+```{r, warning = FALSE}
+new = data.frame(YSFM = "6", Place = "Rural", Education = "4")
+pred = predict(model1, newdata = new, se.fit = TRUE, interval = "confidence")
+ci = c(pred$fit - 1.65*pred$se, pred$fit + 1.65*pred$se)
+```
+
+Average children will be 1.13 children, with a confidence interval of (.73, 1.54). Since the highest level of YSFM has the most years since marriage, it is a good estimate for lifetime average across all women, based on the information provided.
+
+
+
+
+
+
+
+
+
+

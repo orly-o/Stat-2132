@@ -1,0 +1,105 @@
+---
+title: ''
+author: ''
+date: ''
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+setwd("C:/Users/orlyo/OneDrive/Desktop/Grad School/Spring 2021/2. STAT 2132 - Applied Stat. Methods 2/Exams/Final")
+load("Genes.RData")
+data = read.csv("Data.csv")
+y.t = t(Y) # switch rows and columns - transpose of Y
+
+library(nlme)
+library(lme4)
+library(lmerTest)
+library(multcomp)
+# library(dplyr)
+# library(GLSME)
+```
+
+## Problem 1
+
+*Using only individuals with 5 dose measurements.*  
+# (f)
+```{r, echo = FALSE}
+all = cbind(data, y.t)
+sub = all[all$return == 1,]
+sub$conc = as.factor(sub$conc)
+
+# do with just one gene, show method, can be expanded to all genes
+fit = glm(V1 ~ conc + line, data = sub)
+summary(fit)
+summary(glht(fit, linfct = mcp(conc = "Tukey")))
+
+# mean centering??
+coef = fit$coefficients
+avg = mean(fit$coefficients[1:5])
+mean_cent = coef[1:5] - avg
+mean_cent # mean-centered coefficients (???)
+```
+
+\newpage
+## Problem 2
+
+*Using all data.*  
+
+# (a)
+```{r, echo = FALSE}
+y.new = Y[3884,] # just gene JADE1: g = 3884
+data$y.sub = y.new
+fit2 = lmerTest::lmer(y.sub ~ as.factor(conc) + (1|cell_line), data = data)
+summary(fit2)
+```
+
+\newpage
+# (b)
+```{r, echo = FALSE}
+drop1(fit2, test = "Chisq")
+fit.null = lmerTest::lmer(y.sub ~ 1 + (1|cell_line), data = data)
+fit.alt = lmerTest::lmer(y.sub ~ as.factor(conc) + (1|cell_line), data = data)
+testStat = as.numeric(2*(logLik(fit.alt) - logLik(fit.null)))
+testStat
+pval = pchisq(testStat, 4, lower = FALSE)
+pval
+
+# anova(fit.null, fit.alt, refit = FALSE)
+```
+
+\newpage
+# (c)
+```{r, echo = FALSE}
+hist(y.new)
+qqnorm(y.new, pch = 1, frame = FALSE)
+qqline(y.new, col = "steelblue", lwd = 2)
+```
+
+\newpage
+# (d)
+```{r, echo = FALSE}
+data$conc = as.factor(data$conc)
+fit2 = lmerTest::lmer(y.sub ~ conc + (1|cell_line), data = data)
+summary(glht(fit2, linfct = mcp(conc = "Tukey")))
+confint(glht(fit2, linfct = mcp(conc = "Tukey"))) # CI for difference in dose effects
+confint(fit2) # CI for each estimate
+```
+
+\newpage
+# (f)
+```{r, echo = FALSE}
+# fit model with regular covariate, fit model linearly, run LRT
+fit.h0 = lmer(y.sub ~ conc + (1|cell_line), data = data)
+fit.h1 = lm(y.sub ~ conc + cell_line, data = data)
+test.stat = as.numeric(2*(logLik(fit.h1) - logLik(fit.h0)))
+test.stat
+p = pchisq(test.stat, 4, lower = FALSE)
+p
+```
+
+
+

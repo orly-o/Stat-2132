@@ -1,0 +1,177 @@
+---
+title: ''
+author: ''
+date: ''
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+setwd("C:/Users/orlyo/OneDrive/Desktop/Grad School/Spring 2021/2. STAT 2132 - Applied Stat. Methods 2/Homeworks/HW5")
+c = read.csv("Q1c.csv")
+c$Y = as.factor(c$Y)
+d = read.csv("Q1d.csv")
+d$Y = as.factor(d$Y)
+library(MASS)
+library(effects)
+library(VGAM)
+```
+
+# (c)
+
+*Using R, make two plots:*
+
+*(i) On the same axes, plot the estimated probabilities from (Mi) and the estimated probabilities from (Mii) as a function of xi.*
+
+```{r, fig.width = 6, fig.height = 4}
+## Dataset c
+fiti.c = glm(Yi ~ X, data = c, family = binomial(link = "logit"))
+# summary(fiti.c)
+fitii.c = glm(Yii ~ X, data = c, family = binomial(link = "logit"))
+# summary(fitii.c)
+
+# estimated probabilities
+plot(c$X, fiti.c$fitted.values, col = "blue", pch = 20, main = "Estimated Probabilities - Dataset C", xlab = "X", ylab = "Fitted Values")
+points(c$X, fitii.c$fitted.values, col = "green", pch = 20)
+legend("topleft", legend = c("Mi", "Mii"), col = c("blue", "green"), lty = 1, lwd = 2)
+```
+
+*(ii) On the same axes, plot the logit of the estimated probabilities from (Mi) and the logit of the estimated probabilities from (Mii) as a function of xi.*
+
+```{r, fig.width = 6, fig.height = 4}
+# logit of estimated probabilities
+plot(c$X, log(fiti.c$fitted.values/(1 - fiti.c$fitted.values)), col = "blue", pch = 20, main = "Logit of Estimated Probabilities - Dataset C", xlab = "X", ylab = "Fitted Values")
+points(c$X, log((fitii.c$fitted.values)/(1 - (fitii.c$fitted.values))), col = "green", pch = 20)
+legend("topleft", legend = c("Mi", "Mii"), col = c("blue", "green"), lty = 1, lwd = 2)
+```
+
+# (d)
+
+*The file Q1d.txt on the Courseweb also contains a sample data set with n = 200. Repeat part (c) using this data set.*
+
+```{r, fig.width = 6, fig.height = 4}
+## Dataset d
+fiti.d = glm(Yi ~ X, data = d, family = binomial(link = "logit"))
+# summary(fiti.d)
+fitii.d = glm(Yii ~ X, data = d, family = binomial(link = "logit"))
+# summary(fitii.d)
+
+# estimated probabilities
+plot(d$X, fiti.d$fitted.values, col = "blue", pch = 20, main = "Estimated Probabilities - Dataset D", xlab = "X", ylab = "Fitted Values")
+points(d$X, fitii.d$fitted.values, col = "green", pch = 20)
+legend("topleft", legend = c("Mi", "Mii"), col = c("blue", "green"), lty = 1, lwd = 2)
+
+# logit of estimated probabilities
+plot(d$X, log(fiti.d$fitted.values/(1 - fiti.d$fitted.values)), col = "blue", pch = 20, main = "Logit of Estimated Probabilities - Dataset D", xlab = "X", ylab = "Fitted Values")
+points(d$X, log((fitii.d$fitted.values)/(1 - (fitii.d$fitted.values))), col = "green", pch = 20)
+legend("topleft", legend = c("Mi", "Mii"), col = c("blue", "green"), lty = 1, lwd = 2)
+```
+
+
+
+
+
+
+
+
+```{r, eval = FALSE}
+m.c$probs = predict(m.c, type = "probs")
+m.d$probs = predict(m.d, type = "probs")
+
+# Probabilities
+plot(effect("X", m.c))
+plot(effect("X", m.c), style = "stacked")
+plot(effect("X", m.c, latent = TRUE))
+
+#############################################################################
+
+fit = vglm(Y ~ X, family = cumulative(parallel = TRUE), data = c)
+
+life1 = seq(0, 9, 1)
+fit.logit.ses0 = predict(fit, newdata = data.frame(life = life1, ses = 0))
+fit.logit.ses1 = predict(fit, newdata = data.frame(life = life1, ses = 1))
+name = colnames(fit.logit.ses1)
+plot.data = data.frame(life = rep(life1, 3), ses = rep(c("SES = low", "SES = high"), each = 3*10),
+type = rep(name, each = 10), logit = c(fit.logit.ses0, fit.logit.ses1))
+xyplot(Y ~ X, data = c, group = type, type = "l", auto.key = list(points = FALSE, lines = FALSE, columns = 3))
+
+##############################################################################
+
+library(sjPlot)
+plot_model(m.c, type = "pred", show.ci = TRUE, terms = "X")
+plot_model(fit, type = "pred", show.ci = TRUE, terms = "X")
+```
+
+
+
+```{r, eval = FALSE}
+## Dataset c
+fiti.c = glm(Yi ~ X, data = c, family = binomial(link = "logit"))
+fitii.c = glm(Yii ~ X, data = c, family = binomial(link = "logit"))
+
+# estimated probabilities
+plot(c$X, fiti.c$fitted.values, col = "blue", pch = 20, main = "Estimated Probabilities - Dataset C", xlab = "X", ylab = "Fitted Values")
+points(c$X, fitii.c$fitted.values, col = "green", pch = 20)
+legend("topleft", legend = c("Mi", "Mii"), col = c("blue", "green"), lty = 1, lwd = 2)
+
+# logit of estimated probabilities
+plot(c$X, log(fiti.c$fitted.values/(1 - fiti.c$fitted.values)), col = "blue", pch = 20, main = "Logit of Estimated Probabilities - Dataset C", xlab = "X", ylab = "Fitted Values")
+points(c$X, log((fitii.c$fitted.values)/(1 - (fitii.c$fitted.values))), col = "green", pch = 20)
+legend("topleft", legend = c("Mi", "Mii"), col = c("blue", "green"), lty = 1, lwd = 2)
+
+
+## Dataset d
+fiti.d = glm(Yi ~ X, data = d, family = binomial(link = "logit"))
+fitii.d = glm(Yii ~ X, data = d, family = binomial(link = "logit"))
+# estimated probabilities
+plot(d$X, fiti.d$fitted.values, col = "blue", pch = 20, main = "Estimated Probabilities - Dataset D", xlab = "X", ylab = "Fitted Values")
+points(d$X, fitii.d$fitted.values, col = "green", pch = 20)
+legend("topleft", legend = c("Mi", "Mii"), col = c("blue", "green"), lty = 1, lwd = 2)
+
+# logit of estimated probabilities
+plot(d$X, log(fiti.d$fitted.values/(1 - fiti.d$fitted.values)), col = "blue", pch = 20, main = "Logit of Estimated Probabilities - Dataset D", xlab = "X", ylab = "Fitted Values")
+points(d$X, log((fitii.d$fitted.values)/(1 - (fitii.d$fitted.values))), col = "green", pch = 20)
+legend("topleft", legend = c("Mi", "Mii"), col = c("blue", "green"), lty = 1, lwd = 2)
+
+```
+
+
+```{r, eval = FALSE}
+## Dataset C
+m.c = polr(Y ~ X, data = c, Hess = TRUE)
+# summary(m.c)
+# m.c$fitted.values
+
+# plot for estimated probabilities
+plot(c$X, m.c$fitted.values[,1], col = "blue", ylim = c(0,1), pch = 20, main = "Estimated Probabilities", xlab = "X", ylab = "Fitted Values")
+points(c$X, (1 - m.c$fitted.values[,3]), col = "green", pch = 20)
+legend("topleft", legend = c("Mi", "Mii"), col = c("blue", "green"), lty = 1, lwd = 2)
+
+# plot for logit of estimated probabilities
+plot(c$X, log(m.c$fitted.values[,1]/(1 - m.c$fitted.values[,1])), col = "blue", pch = 20, main = "Logit of Estimated Probabilities", xlab = "X", ylab = "Fitted Values")
+points(c$X, log((1 - m.c$fitted.values[,3])/(1 - ((1 - m.c$fitted.values[,3])))), col = "green", pch = 20)
+legend("topleft", legend = c("Mi", "Mii"), col = c("blue", "green"), lty = 1, lwd = 2)
+
+
+## Dataset D
+m.d = polr(Y ~ X, data = d, Hess = TRUE)
+# summary(m.d)
+# m.d$fitted.values
+
+# plot for estimated probabilities
+plot(d$X, m.d$fitted.values[,1], col = "blue", ylim = c(0,1), pch = 20, main = "Estimated Probabilities", xlab = "X", ylab = "Fitted Values")
+points(d$X, (1 - m.d$fitted.values[,3]), col = "green", pch = 20)
+legend("topleft", legend = c("Mi", "Mii"), col = c("blue", "green"), lty = 1, lwd = 2)
+
+# plot for logit of estimated probabilities
+plot(d$X, log(m.d$fitted.values[,1]/(1 - m.d$fitted.values[,1])), col = "blue", pch = 20, main = "Logit of Estimated Probabilities", xlab = "X", ylab = "Fitted Values")
+points(d$X, log((1 - m.d$fitted.values[,3])/(1 - ((1 - m.d$fitted.values[,3])))), col = "green", pch = 20)
+legend("topleft", legend = c("Mi", "Mii"), col = c("blue", "green"), lty = 1, lwd = 2)
+
+
+
+```
+

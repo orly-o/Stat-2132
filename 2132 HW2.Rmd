@@ -1,0 +1,115 @@
+---
+title: "HW2"
+author: "Orly Olbum"
+date: ''
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+setwd("C:/Users/orlyo/OneDrive/Desktop/Grad School/Spring 2021/STAT 2132 - Applied Stat. Methods 2/Homeworks/HW2")
+enzyme = read.csv("enzyme.csv")
+library(boot)
+library(broom)
+```
+
+*"Enzyme.txt" contains the data set for problems 1 and 2. If ZinR is a random variable, the notation Z ~ (mu, v) is such that E(Z) = mu and Var(Z) = v.*
+
+## Problem 1
+
+*In an enzyme kinetics study the velocity of a reaction (Y) is expected to be related to the concentration (X) as follows:*
+
+![](prob1.png)
+
+*(a) We must first obtain starting points for Gauss-Newton to be able to estimate gamma0 and gamma1. Observe that*
+
+![](prob1a.png)
+
+*Use this to obtain starting points for Gauss-Newton.*  
+
+With some fenegling of the function presented above we can see that gamma0 will be our scaling factor and -gamma1 will be our vertical asymptote.
+
+![](hw1a.jpg)
+
+*(b) Estimate gamma0 and gamma1 using the starting points obtained in part (a).*
+
+Since as X ->  infinity Y -> 1/infinity, we see that gamma0 will approach the max value of Y so gamma0 should start at max(Y) = 21.6. The gamma0 starting point can be 0 because the denominator cannot be 0, and since all of Xi is positive, gamma0 has to be > -Xi.
+
+```{r}
+model.start = nls(Y ~ gamma0*X / (gamma1 + X), data = enzyme, 
+                  start = list(gamma0 = 21.6, gamma1 = 0))
+gamma.hat = model.start$m$getAllPars()
+gamma.hat
+```
+
+From the starting points and running the model we get gamma0-hat = 28.14 and gamma1-hat = 12.57.
+
+
+## Problem 2
+
+Refer to the analysis of the enzyme kinetics in problem 1:
+
+*(a) Plot the estimated nonlinear regression function and data on the same graph. Does the fit appear to be adequate?*
+
+```{r}
+plot(enzyme$X, enzyme$Y, xlab = "X", ylab = "Y", main = "Enzyme data with Model Fit")
+lines(enzyme$X, model.start$m$fitted(), col = "red")
+```
+
+The fit using the starting points above appears to fit the data very well.
+
+*(b) Plot the residuals against the fitted values and obtain the normal qq-plot. Comment on the fit of the model.*
+
+```{r}
+plot(model.start$m$fitted(), model.start$m$resid(), xlab = "Fitted values", 
+     ylab = "Residuals", main = "Residuals vs. Fitted Values")
+abline(h = 0, col = "red", lty = 3)
+
+qqnorm(model.start$m$resid(), ylab = "Residuals")
+qqline(model.start$m$resid(), col ="red")
+```
+
+The residuals against the fitted values show equal variance, and the normal qq-plot shows the data just about hugs the qq-line, which means our assumptions are satisfied and our model fit is appropriate.
+
+*(c) Assume that the fitted model is appropriate and that large sample inference can be employed. Report the test statistic and two-sided p-value of the test of H0: gamma1 = 20.*
+
+```{r}
+J = model.start$m$gradient()
+sigma2 = sum(model.start$m$resid()^2)/(nrow(J) - ncol(J))
+se.gamma1 = sqrt(sigma2)*sqrt( solve(t(J)%*%J)[2,2] )
+n = 18
+
+gamma1 = gamma.hat[2]
+t = (gamma1 - 20) / se.gamma1
+p.val = 2*pt(-abs(t), df = n-1)
+t; p.val
+```
+
+With a test statistic of -9.73 and a p-value of 2.3e-08, we can reject the H0 and conclude that gamma1 is not equal to 20.
+
+
+##Problem 3
+
+*Refer to the analysis of the enzyme kinetics in problems 1 and 2. Perform a bootstrap with 1000 samples, and compute 95% percentile confidence intervals for gamma1. Is it close to the confidence interval based on the large sample theory?*
+
+```{r}
+gamma_function = function(data, i){
+ d2 = data[i,] 
+ model = nls(Y ~ gamma0*X / (gamma1 + X), data = d2, start = list(gamma0 = 21, gamma1 = 0))
+ gammahat = model$m$getAllPars()
+ return(gammahat[2])
+}
+
+bootstrap_gamma1 = boot(enzyme, gamma_function, R = 1000)
+boot.ci(boot.out = bootstrap_gamma1, conf = .95, type = "norm")
+
+# large sample theory
+CI.gamma1 = gamma.hat[2] + c(-1,1)*se.gamma1*qt(p = 0.975, df = nrow(J)-ncol(J))
+CI.gamma1
+```
+
+After 1000 bootstrap samples, the bootstrap CI is (11.24, 14.07). Compared to the CI using the design matrix above, our bootstrap CI is narrower (i.e., better).
+
+

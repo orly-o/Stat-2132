@@ -1,0 +1,76 @@
+---
+title: ''
+author: ''
+date: ''
+output:
+  pdf_document: default
+  word_document: default
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+setwd("C:/Users/orlyo/OneDrive/Desktop/Grad School/Spring 2021/2. STAT 2132 - Applied Stat. Methods 2/Homeworks/HW8")
+library(lme4)
+sleep = read.csv("sleep.csv")
+sleep$Individual = as.factor(sleep$Individual)
+```
+
+## Problem 4
+
+*The data in the file “sleep.txt” (with 40 rows of data) give the average hours (times 10) of sleep (in the third column) of 10 insomniacs (indexed with the numbers from 1 to 10, in the first column of the file) without treatment (A) and with three different drugs (B,C and D), of which C and D are of the same general type (but are not identical) and B is a different type of drug. The averages are over a varying number of nights (from 3 through 9), but the specific number of nights for each entry is unavailable.*
+
+# (a)
+*Fitting an additive fixed effects model (treating treatment and individual as fixed effects), estimate sigma, the standard deviation of the errors. Next, using only the data for treatments C and D (i.e., leave out B and A), fit an additive fixed effects model and again estimate sigma, the standard deviation of the errors. Compare the two estimates of sigma and give an explanation for any difference you find.*
+
+```{r}
+model1 = aov(Hours ~ Individual + Treatment, data = sleep)
+summary(model1)
+
+sleep_c = sleep[sleep$Treatment == 'C',]
+sleep_d = sleep[sleep$Treatment == 'D',]
+sleep_cd = rbind(sleep_c, sleep_d)
+
+model2 = aov(Hours ~ Individual + Treatment, data = sleep_cd)
+summary(model2)
+```
+
+The square root of MSE will be the estimate for sigma for each model. For the model with all four treatments, sigma-hat = 11.59 and for the model with just treatments C and D, sigma-hat = 4.28. The subsetted model has a much smaller sigma-hat, which indicates much less variation between treatments C and D, or conversely, much more variation between all of the treatments.
+
+#(b)
+*Is there any evidence of a person x treatment interaction? If so, what is the nature of this interaction? In particular, does your answer to the previous point provide evidence of an interaction?*
+
+```{r}
+model3 = aov(Hours ~ Individual + Treatment + Individual*Treatment, data = sleep)
+summary(model3)
+```
+
+Once we add an interaction to the model between Individual and Treatment, we get almost the same exact Mean Sq calculations, which tells us that the interaction accounts for all errors from the first model in (a). If it accounts for all outside influences, we may not need to include the interaction in the model. This result may also indicate that one or both of these terms should be treated as random effects rather than as fixed effects.
+
+#(c)
+*Suppose the 10 patients can be thought of as a random sample from the population of insomniacs. Assume for the rest of the problem that the average hours of sleep is normally distributed.*
+
+*(i) Write down a model for the average hours of sleep for insomniac patients, assuming treatment is a fixed effect. Make sure to allow for the possibility of a patient x treatment interaction if you found evidence for it in part (b).*
+
+If we assume there is an interaction, the model is as follows:  
+
+Hours = mean + Individual (random) + Treatment (fixed) Individual*Treatment + error  
+
+$$y_{ij} = \mu_{..} + \rho_{i} + \tau_{j} + (\rho\tau)_{ij} + \epsilon_{ij}$$
+
+Where Yij are hours indexed by i treatments (i = A, B, C, D) and j individuals (j = 1, ..., 10). We assume mu_i's are iid, e_ij's are iid, and mu_i's are independent of e_ij's (as well as the interaction term). We assume hours are normally distributed. We also consider the restriction on the sum of all tau's to be zero, and the sum of all interaction terms to be 0.
+
+*(ii) Assuming a patient x treatment interaction, use part (i) to derive a model for the average number of hours a patient will sleep after being treated with drug B, C or D, given that they slept y0 hours before treatment.*
+
+Hours|y0 = Individual (random) + Treatment (fixed) Individual*Treatment + error  
+
+$$y_{ij}|y0 = y0 + \rho_{i} + \tau_{j} + (\rho\tau)_{ij} + \epsilon_{ij}$$
+
+Now, instead of a mean as the intercept, we have the y0 hours slept before treatment as a condition on the model. All other assumptions from (i) hold.
+
+*(iii) Given your results, do you think the mean effect of each drug over this population is a quantity of clinical importance? When answering this question, think about whether or not the drug you would recommend an insomniac take depends on how many hours they currently sleep..*
+
+What we've seen is that the effect of each drug is a quantity of clinical importance, based on the models above and their interpretations. We would want to treat individuals with different hours of sleep with different treatments - i.e., yes it does matter how many hours an insomniac sleeps when determining their treatment.
+
+

@@ -1,0 +1,142 @@
+---
+title: "2132 HW7"
+author: ""
+date: ""
+output: pdf_document
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+setwd("C:/Users/orlyo/OneDrive/Desktop/Grad School/Spring 2021/2. STAT 2132 - Applied Stat. Methods 2/Homeworks/HW7")
+
+library(dvmisc)
+
+wheat = read.csv("wheat.csv")
+wheat$Variety = as.factor(wheat$Variety)
+wheat$obs = seq.int(nrow(wheat))
+wheat$block[wheat$obs <= 56] = 1
+wheat$block[wheat$obs > 56 & wheat$obs <= 112] = 2
+wheat$block[wheat$obs > 112 & wheat$obs <= 168] = 3
+wheat$block[wheat$obs > 168 & wheat$obs <= 224] = 4
+wheat$block = as.factor(wheat$block)
+```
+
+## Problem 3
+
+*A study was done to compare the yields of 56 varieties of wheat in a randomized complete block design (RCBD) with four blocks of size 56. The data for the experiment are in the file “wheat56.txt”. The four blocks are observations 1-56, 57-112, 113-168 and 169-224. The varieties, yields, latitudes and longitudes of each plot (latitudes and longitudes in unstated units) are given. Although the units are unstated, keep in mind that agricultural field trials like this are carried out at a single farm so that the weather is essentially the same at all plots. The labeling of the varieties as 1-56 “in order” in Block 1 is for convenience; you may assume that in fact the variety assignments were properly randomized in all four blocks.*
+
+# (a)
+*Estimate the variety effects using the standard model for an RCBD treating blocks and varieties as fixed effects. Using appropriate tables and/or plots, summarize your findings about the differences between varieties. As part of your analysis, include an F-test for the hypothesis of no variety effects.*
+
+```{r}
+boxplot(Yield ~ block, data = wheat, main = "Yield by Block", xlab = "Block", ylab = "Yield", col = "blue", border = "black")
+boxplot(Yield ~ Variety, data = wheat, main = "Yield by Variety", xlab = "Variety", ylab = "Yield", col = "green", border = "black")
+```
+
+In the boxplot we can see that some varieties are clearly separated from the bulk of the group, and we may find a significant result when this model is run.
+
+```{r, warning = FALSE}
+fit = aov(Yield ~ block + Variety, data = wheat)
+summary(fit)
+```
+
+The ANOVA output shows that block is a significant effect on Yield, and Variety is not, with F values of 12.16 and 0.88, respectively (with Variety treated as a factor). While the boxplot showed potentially some difference between Varieties, it was not enough to yield a significant result, and we conclude that there are no differenced between varieties as effects on yield. Could there be something else going on here?
+
+# (b)
+*Find a 95% confidence interval for the mean yield of varieties 1-20 minus the mean yield of varieties 21-56.*
+
+```{r, warning = FALSE}
+mod = lm(Yield ~ block + Variety, data = wheat)
+mu1 = mean(fit$fitted.values[as.numeric(wheat$Variety) <= 20])
+mu2 = mean(fit$fitted.values[as.numeric(wheat$Variety) > 20])
+t = qtukey(p = 0.95, nmeans = 2, df = 54)/sqrt(2)
+n1 = 20
+n2 = 36
+sig.sq = sqrt(get_mse(mod)*((1/n1) + (1/n2)))
+lo = (mu1 - mu2) - t*sig.sq
+hi = (mu1 - mu2) + t*sig.sq
+ci = c(lo, hi)
+ci
+```
+
+The confidence interval is (-87.56, 69.93) which includes 0, which is what we would expect from the results above.
+
+# (c)
+*Plot the residuals as a function of the geographic coordinates of the plots. Discuss any patterns you see and comment on the reasonableness of the assumptions underlying the analyses in (a). Can you identify any varieties whose yields (relative to other varieties) might be over or underestimated because of the plots to which they were assigned? Comment.*
+
+```{r, warning = FALSE}
+plot(wheat$Longitude, fit$residuals, main = "Longitude vs. Residuals", xlab = "Longitude", ylab = "Residuals")
+abline(h = 0)
+plot(wheat$Latitude, fit$residuals, main = "Latitude vs. Residuals", xlab = "Latitude", ylab = "Residuals")
+abline(h = 0)
+
+tukey1 = TukeyHSD(fit)
+variety1 = data.frame(tukey1$Variety[,4])
+# View(variety1)
+```
+
+When graphing the model residuals against longitude and latitude, we do not want to see any patterns. Latitude is somewhat scattered, but longitude does show a slight upward trend. Since they are not yet included in the model, a trend with the model residuals indicates that longitude may need to be included as a potential effect in the model. Lower longitudes seem to be underestimated while higher latitudes seem to be overestimated (i.e., the patterns).
+
+A Tukey test of the model will show which varieties have which p-values. That is, which are contributing the results of the main F-test above.
+
+# (d)
+*Reanalyze the data including a linear function of the coordinates in your mean function. What effect does this change have on your inferences about variety effects? In particular, which estimated variety effects change the most from the analysis in (c)? Plot the residuals as a function of the geographic coordinates of the plots. To what extent are any problems you noted with the residual plot in (c) fixed?*
+
+```{r, warning = FALSE}
+fit2 = aov(Yield ~ block + Variety + Longitude + Latitude, data = wheat)
+summary(fit2)
+
+tukey2 = TukeyHSD(fit2)
+variety2 = data.frame(tukey2$Variety[,4])
+# View(variety2)
+
+p_vals = cbind(round(variety1, 3), round(variety2, 3))
+colnames(p_vals) = c("p1", "p2")
+
+p_vals$diff = with(p_vals, ifelse(p1 == p2, 1, 0))
+# View(p_vals)
+
+n = nrow(p_vals)
+n - sum(p_vals$diff)
+```
+
+The p_vals table shows the p-values associated with the Tukey test for the first model (just block and Variety) and the second model (additionally longitude and latitude). 1's in the "diff" column indicate the same p-value, and 0's indicate a different p-value, which means a different test result from Tukey in the second model. There are 156 Variety/block combinations that are different in the second model after including longitude and latitude.
+
+# (e)
+*Answer the same questions as in (d), but this time including a quadratic function of the coordinates (i.e., a second order polynomial in latitude and longitude) in your mean function.*
+
+```{r, warning = FALSE}
+fit3 = aov(Yield ~ block + Variety + Longitude + I(Longitude^2) + Latitude + I(Latitude^2), data = wheat)
+summary(fit3)
+
+tukey3 = TukeyHSD(fit3)
+variety3 = data.frame(tukey3$Variety[,4])
+# View(variety3)
+
+p_vals_update = cbind(p_vals, round(variety3, 3))
+colnames(p_vals_update) = c("p1", "p2", "p3")
+
+p_vals_update$diff = with(p_vals_update, ifelse(p3 == p3, 1, 0))
+# View(p_vals_update)
+
+m = nrow(p_vals_update)
+m - sum(p_vals_update$diff)
+```
+
+The new model fit with the second order terms for long/lat have led to a significant variety effect. Now, the residual plots show no apparent pattern and we can rest a bit easier about the model fit.
+
+```{r}
+plot(wheat$Longitude, fit3$residuals, main = "Longitude vs. Residuals", xlab = "Longitude", ylab = "Residuals")
+abline(h = 0)
+plot(wheat$Latitude, fit3$residuals, main = "Latitude vs. Residuals", xlab = "Latitude", ylab = "Residuals")
+abline(h = 0)
+```
+
+None of the p-values from the Tukey test in the new model (quadratic longitude and latitude terms) are different than in the second model. Additionally, squaring these covariates had no effect on the model output either.
+
+#(f)
+*Do you think the design used for this study was well-chosen? Discuss any problems you see and describe how the study might have been designed differently to avoid or reduce these problems.*
+
+If there is a way to assign one value to location as opposed to longitude and latitude, that may help account for this variable as an effect on yield. For example, setting up plots and treating it as a factor for the model. If we look at longitude and latitude separately, we may be able to pinpoint a row or column that acts differently but not a specific location. However, in the later model with the quadratic terms we did end up seeing the significant result for Variety that we expected earlier, so maybe we are okay with this model (i.e., well-chosen).
+
+

@@ -1,0 +1,194 @@
+---
+title: '2132 HW9'
+author: 'Orly Olbum'
+date: 'due April 22, 2021'
+output:
+  pdf_document: default
+  word_document: default
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+setwd("C:/Users/orlyo/OneDrive/Desktop/Grad School/Spring 2021/2. STAT 2132 - Applied Stat. Methods 2/Homeworks/HW9")
+library(lme4)
+library(nlme)
+library(dvmisc)
+
+sleep = read.csv("sleep.csv")
+# sleep$Individual = as.factor(sleep$Individual)
+# sleep$Treatment = as.factor(sleep$Treatment)
+
+age1 = read.csv("Age1.csv")
+age3 = read.csv("Age3.csv")
+```
+
+## Problem 1
+
+*This problem is an extension of Problem 4 from HW8.*
+
+#(a)
+*Use REML + GLS to fit the model you proposed in part (c)(i) of Problem 4. Test the null hypothesis that there is no patient x treatment interaction. Make sure to report your null and alternative models.*
+
+From HW8 #4 (c)(i):
+The null model, with no interaction:
+
+$$y_{ij} = \mu_{..} + \rho_{i} + \tau_{j} + \epsilon_{ij}$$
+
+The alternative model, including interaction:  
+
+Hours = mean + Individual (random) + Treatment (fixed) + Individual*Treatment + error  
+
+$$y_{ij} = \mu_{..} + \rho_{i} + \tau_{j} + (\rho\tau)_{ij} + \epsilon_{ij}$$
+
+
+```{r}
+mod1_int = lmer(Hours ~ Treatment + Treatment:Individual + (1|Individual), data = sleep)
+mod1_none = lmer(Hours ~ Treatment + (1|Individual), data = sleep)
+anova(mod1_int, mod1_none, refit = FALSE)
+```
+
+Because ANOVA produces a statistically significant p-value, we reject the null that the interaction term doesn't apply and we conclude that the interaction term is significant.
+
+#(b)
+*Use the model you fitted above to estimate the parameters in the model you proposed part (c)(ii) of Problem 4. Which drug would you recommend an insomniac take if they slept an average of 2 hours a night without treatment? How about one that slept an average of 6 hours a night?*
+
+Model from (c)(ii):
+
+Hours|y0 = mean + Individual (random) + Treatment (fixed) Individual*Treatment + error  
+$$y_{ij}|y0 = y0 + \rho_{i} + \tau_{j} + (\rho\tau)_{ij} + \epsilon_{ij}$$
+
+If we use the model from above to fit the model with the mean now as intercept, we might recommend Treatment B for someone who has slept an average of 2 hours and Treatment C for someone who has slept an average of 6 hours a night.
+
+\newpage
+
+## Problem 3
+*The data Age1.txt and Age3.txt contain measurements of the concentration of bilirubin, a ubiquitous small molecule metabolite, in the blood plasma of children at age 1 and 3, respectively. The goal is to understand relationship between the concentration of bilirubin and recurrent wheeze, the latter of which is a diagnosis of >= 4 wheezing episodes in that year. The complete list of covariates is given below.*
+
+- IndividualID: A unique ID given to each child. There should be 33 children whose bilirubin concentration was measured at both age 1 and age 3. You may assume that data collected on different individuals are independent.  
+- Bilirubin: The log-concentration of bilirubin. Treat this as the dependent variable.  
+- Wheeze: A factor variable with 3 levels. level 0: no wheezing episodes in that year; level 1: 1-3 wheezing episodes in that year; level 2: >=4 wheezing episodes in that year.  
+- Diet: A factor variable with 2 levels. level 0: exclusively breastfed for the first six months of life; level 1: not exclusively breastfed for the first six months of life.  
+- Daycare: A factor variable with 2 levels. level 0: did not attend daycare in the first year of life; level 1: attended daycare in the first year of life.  
+- Sex: A factor variable with 2 levels. level 0: male; level 1: female.  
+
+#(a)
+*By performing two separate linear regressions (one at age 1 and one at age 3) and treating all of the above-mentioned covariates in your model as additive fixed effects, estimate the expected difference in the log-concentration of bilirubin between recurrent wheezers (those with >= 4 wheezing episodes in that year) and healthy controls (those who did not wheeze in that year) at ages 1 and 3. Report 95% confidence interval for both expected differences.*
+
+```{r}
+fit1 = lm(Bilirubin ~ as.factor(Wheeze) + as.factor(Diet) + as.factor(Daycare) + as.factor(Sex), data = age1)
+
+mu1 = mean(fit1$fitted.values[as.numeric(age1$Wheeze) == 0])
+mu2 = mean(fit1$fitted.values[as.numeric(age1$Wheeze) == 2])
+t = qtukey(p = 0.95, nmeans = 55, df = 11)/sqrt(2)
+n1 = sum(age1$Wheeze == 0)
+n2 = sum(age1$Wheeze == 2)
+sig = sqrt(get_mse(fit1)*((1/n1) + (1/n2)))
+lo = (mu1 - mu2) - t*sig
+hi = (mu1 - mu2) + t*sig
+ci = c(lo, hi)
+ci
+
+fit2 = lm(Bilirubin ~ as.factor(Wheeze) + as.factor(Diet) + as.factor(Daycare) + as.factor(Sex), data = age3)
+
+mu1.2 = mean(fit2$fitted.values[as.numeric(age3$Wheeze) == 0])
+mu2.2 = mean(fit2$fitted.values[as.numeric(age3$Wheeze) == 2])
+t.2 = qtukey(p = 0.95, nmeans = 109, df = 18)/sqrt(2)
+n1.2 = sum(age3$Wheeze == 0)
+n2.2 = sum(age3$Wheeze == 2)
+sig.2 = sqrt(get_mse(fit2)*((1/n1.2) + (1/n2.2)))
+lo.2 = (mu1.2 - mu2.2) - t.2*sig.2
+hi.2 = (mu1.2 - mu2.2) + t.2*sig.2
+ci.2 = c(lo.2, hi.2)
+ci.2
+```
+
+The average difference for age1 is 0.336 and the 95% CI is (-1.074, 1.746); the average difference for age3 is 0.095 and the 95% CI for age3 is (-0.741, 0.931).
+
+#(b)
+*The inference you performed in part (a) presumably relied on approximating test statistics with a normal or t-distribution. Do you trust this approximation? Give an argument as to why you do or do not. Include plots if necessary.*
+
+To test this theory we can plot the residuals of the models against the Bilirubin variable and see if there is a straight line.
+
+```{r}
+plot(age1$Bilirubin, fit1$residuals, xlab = "Bilirubin", ylab = "Residuals", main = "Age 1 Model Fit")
+plot(age3$Bilirubin, fit2$residuals, xlab = "Bilirubin", ylab = "Residuals", main = "Age 3 Model Fit")
+
+qqnorm(age1$Bilirubin, pch = 1, frame = FALSE)
+qqline(age1$Bilirubin, col = "steelblue", lwd = 2)
+
+qqnorm(age3$Bilirubin, pch = 1, frame = FALSE)
+qqline(age3$Bilirubin, col = "steelblue", lwd = 2)
+```
+
+Since we see very straight lines for both residual plots, we can be ok with normal approximation. The qq-plots do show some deviance in the tails but since the data mostly hugs the line, we are still ok with normal approximation.
+
+#(c)
+*Let Bj be the expected difference in the log-concentration of bilirubin between recurrent wheezers and healthy controls at age j, and let Bj-hat be its estimate you determined in part (a). Your collaborator has reason to believe that B1 = B3 = B. To estimate B, suppose you decide to meta-analyze the results at ages 1 and 3 by  modeling B1-hat, B3-hat as ~N(1B, diag(v1-hat, v3-hat)), where vj-hat is the estimate for the variance of Bj-hat determined in part (a). Assuming this model is correct, report a point estimate and 95% confidence interval for B.*
+
+
+```{r}
+pe = mean((mu1 - mu2), (mu1.2 - mu2.2))
+t.2 = qtukey(p = 0.95, nmeans = 109, df = 18)/sqrt(2)
+n1 = 109 + 55
+n2 = 12 + 19
+sigg = sig*sig.2
+lo = pe - t*sigg
+hi = pe + t*sigg
+ci = c(lo, hi)
+ci
+```
+
+If we are assuming B1 = B3, and that the variance is the product of the variances of B1 and B3 estimates from (a), then a point estimate for B is 0.336 and a 95% CI is (0.111, 0.561).
+
+#(d)
+*Do you think the model in part (c) is appropriate? Why or why not? Given your answer, do you suspect the confidence interval determined in part (c) is too narrow, too wide, or accurate? Justify your answer.*
+
+The model is appropriate because of the assumptions we have covered, but the confidence interval may be too narrow because the variance will be estimated lower than the true variance, so we will have an anti-conservative confidence interval.
+
+
+#(e)
+*Let yij be the log-bilirubin concentration at age j in individual i = 1, ..., nj, and let xji be the covariates for individual i at age j used in part (a). Assume E(yij) = xjiTgammaj...*
+
+*(i) What do you expect the sign of phi to be?*
+
+If we are looking at the covariance of concentration for the same individual between two different ages, we would expect phi to be positive.
+
+*(ii) Based on the results from part (a), do you think it would be appropriate to let sigma_1^2 = sigma_3^2? Justify your answer.*
+
+```{r, include = FALSE}
+# f = sig^2 / sig.2^2
+# pf(f, 10, 17, lower.tail = FALSE)
+```
+
+Because the intervals from above do not overlap, we have no evidence to suggest they are different, so we can assume sigma_1^2 = sigma_3^2.
+
+#(f)
+*Using whatever method you deem most appropriate, estimate sigma_j^2 and phi.*
+
+Using the same output from above, since we can assume equal variance between the ages, we have the following estimates for sigma_j^2 and phi.
+
+```{r}
+summary(fit1); summary(fit2)
+sig^2; sig.2^2
+```
+
+For age 1, sigma^2 = 0.072 and for age 3, sigma^2 = 0.025.
+
+
+#(g)
+*See attached.*
+
+#(h)
+*Using (e) and (f), estimate V. Comment on the off-diagonal elements of the matrix.*
+
+If we estimate the variance from above of B1-hat and B3-hat, the off-diagonal elements of this matrix will all be zero.
+
+#(i)
+*Assume B1-hat, B3-hat are jointly normal and that B1 = B3 = B. Use your estimate for V from part (h) to provide a point estimate and 95% CI for B.*
+
+If B1-hat and B3-hat are jointly normal, their variance will be pooled and different from above, for a 95% CI.
+
+
+
